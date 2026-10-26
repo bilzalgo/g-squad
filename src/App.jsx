@@ -34,6 +34,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [health, setHealth] = useState(null);
+  const [pendingActions, setPendingActions] = useState(0);
 
   const notify = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -42,16 +43,30 @@ export default function App() {
   }, []);
 
   const api = useCallback(async (path, options = {}) => {
+    const isAction = !['GET', 'HEAD'].includes((options.method || 'GET').toUpperCase());
+    const startedAt = performance.now();
+    if (isAction) {
+      playActionSound();
+      setPendingActions((current) => current + 1);
+    }
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (csrfToken && options.method && options.method !== 'GET') headers['X-CSRF-Token'] = csrfToken;
-    const response = await fetch(path, {
-      ...options,
-      headers,
-      credentials: 'same-origin',
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
-    return data;
+    try {
+      const response = await fetch(path, {
+        ...options,
+        headers,
+        credentials: 'same-origin',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+      return data;
+    } finally {
+      if (isAction) {
+        const remainingDisplayTime = Math.max(0, 4000 - (performance.now() - startedAt));
+        await new Promise((resolve) => window.setTimeout(resolve, remainingDisplayTime));
+        setPendingActions((current) => Math.max(0, current - 1));
+      }
+    }
   }, [csrfToken]);
 
   const refresh = useCallback(() => setRefreshKey((current) => current + 1), []);
@@ -87,6 +102,7 @@ export default function App() {
           setCsrfToken(result.csrfToken);
           setView('overview');
         }} notify={notify} />
+        {pendingActions > 0 && <ActionLoadingOverlay />}
         <Toast toast={toast} onClose={() => setToast(null)} />
       </>
     );
@@ -147,7 +163,49 @@ export default function App() {
           />
         </div>
       </main>
+      {pendingActions > 0 && <ActionLoadingOverlay />}
       <Toast toast={toast} onClose={() => setToast(null)} />
+    </div>
+  );
+}
+
+function playActionSound() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return;
+
+  let audioContext;
+  try {
+    audioContext = new AudioContextConstructor();
+    const oscillator = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+    const start = audioContext.currentTime;
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, start);
+    oscillator.frequency.setValueAtTime(1175, start + 0.09);
+    volume.gain.setValueAtTime(0.0001, start);
+    volume.gain.exponentialRampToValueAtTime(0.4, start + 0.01);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + 0.25);
+    oscillator.connect(volume);
+    volume.connect(audioContext.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.26);
+    oscillator.addEventListener('ended', () => audioContext.close(), { once: true });
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch((error) => console.error('Unable to enable the action sound.', error));
+    }
+  } catch (error) {
+    if (audioContext) void audioContext.close();
+    console.error('Unable to play the action sound.', error);
+  }
+}
+
+function ActionLoadingOverlay() {
+  return (
+    <div className="action-loading-overlay" role="status" aria-live="polite">
+      <div className="action-loading-message">
+        <span className="spinner-border text-warning" aria-hidden="true" />
+        <span>Waiting for the server to finish…</span>
+      </div>
     </div>
   );
 }

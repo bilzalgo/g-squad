@@ -168,6 +168,8 @@ button, input, select, textarea { font: inherit; }
 .enrollment-secret { padding: 11px; border: 1px dashed #d8bd62; border-radius: 8px; background: #fff9e6; font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 1px; overflow-wrap: anywhere; }
 .provisioning-uri { display: block; max-height: 80px; overflow: auto; padding: 8px; border-radius: 6px; background: #f5f6f3; font-size: 9px; overflow-wrap: anywhere; }
 .screen-loading { display: flex; min-height: 100vh; align-items: center; justify-content: center; gap: 12px; color: #747a72; font-size: 12px; }
+.action-loading-overlay { position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 24px; background: rgb(20 23 20 / 38%); backdrop-filter: blur(2px); }
+.action-loading-message { display: flex; align-items: center; gap: 14px; padding: 18px 22px; border-radius: 12px; background: rgb(255 255 255 / 96%); box-shadow: 0 12px 40px rgb(0 0 0 / 18%); color: var(--ink); font-size: 14px; font-weight: 650; }
 .toast-banner { position: fixed; top: 18px; left: 50%; z-index: 30; display: flex; width: min(calc(100% - 24px), 530px); align-items: center; gap: 11px; padding: 13px 15px; transform: translateX(-50%); border: 1px solid #dde9df; border-radius: 11px; background: #fff; box-shadow: 0 8px 35px rgb(25 35 23 / 13%); font-size: 11px; }
 .toast-banner > span { display: grid; width: 23px; height: 23px; flex: none; place-items: center; border-radius: 50%; background: #e5f4e8; color: #337c47; font-weight: 800; }
 .toast-banner > div { flex: 1; }
@@ -182,6 +184,7 @@ button, input, select, textarea { font: inherit; }
   .topbar { padding-right: 24px; padding-left: 24px; }
 }
 @media (max-width: 760px) {
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: max(16px, 1em) !important; }
   .sidebar { position: sticky; inset: 0 0 auto; width: 100%; height: auto; padding: 0; border-right: 0; border-bottom: 1px solid var(--line); }
   .sidebar > .brand, .workspace-caption, .sidebar-footer { display: none; }
   .sidebar nav { display: flex !important; flex-direction: row !important; gap: 3px !important; overflow-x: auto; padding: 8px 10px; scrollbar-width: thin; }
