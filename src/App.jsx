@@ -318,7 +318,8 @@ function Enrollment({ api, notify, onComplete }) {
         <label className="form-label" htmlFor="enroll-account-id">Admin account ID</label>
         <input id="enroll-account-id" className="form-control mb-3" value={accountId} onChange={(event) => setAccountId(event.target.value)} required />
         <label className="form-label" htmlFor="enroll-token">One-time setup code</label>
-        <input id="enroll-token" className="form-control" autoComplete="off" value={enrollmentToken} onChange={(event) => setEnrollmentToken(event.target.value)} required />
+        <input id="enroll-token" className="form-control" autoComplete="off" autoCapitalize="none" spellCheck={false}
+          value={enrollmentToken} onChange={(event) => setEnrollmentToken(event.target.value)} required />
         {error && <div className="form-error" role="alert">{error}</div>}
         <button className="btn btn-primary w-100 mt-3" disabled={busy}>{busy ? 'Preparing enrollment…' : 'Continue enrollment'}</button>
       </form> : <form onSubmit={complete}>

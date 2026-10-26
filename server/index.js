@@ -484,7 +484,7 @@ async function currentSession(request, response) {
 async function startEnrollment(request, response) {
   const body = await readJson(request);
   const accountId = typeof body.accountId === 'string' ? body.accountId.trim() : '';
-  const token = typeof body.enrollmentToken === 'string' ? body.enrollmentToken : '';
+  const token = typeof body.enrollmentToken === 'string' ? body.enrollmentToken.trim() : '';
   if (!token || token.length > 100) {
     sendJson(response, 400, { error: 'Enter the account ID and valid enrollment code.' });
     return;
@@ -514,7 +514,7 @@ async function startEnrollment(request, response) {
 async function completeEnrollment(request, response, requestId) {
   const body = await readJson(request);
   const accountId = typeof body.accountId === 'string' ? body.accountId.trim() : '';
-  const token = typeof body.enrollmentToken === 'string' ? body.enrollmentToken : '';
+  const token = typeof body.enrollmentToken === 'string' ? body.enrollmentToken.trim() : '';
   const code = typeof body.code === 'string' ? body.code : '';
   if (!token || token.length > 100 || !/^\d{6}$/.test(code)) {
     sendJson(response, 400, { error: 'Enter the enrollment code and six-digit authenticator code.' });
