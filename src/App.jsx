@@ -35,6 +35,8 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [health, setHealth] = useState(null);
   const [pendingActions, setPendingActions] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const notify = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -89,6 +91,7 @@ export default function App() {
   const activeView = availableNavigation.some((item) => item.id === view)
     ? view
     : availableNavigation[0]?.id || '';
+  const activeTitle = navItems.find((item) => item.id === activeView)?.label || 'Overview';
   useEffect(() => {
     if (account && activeView !== view) setView(activeView);
   }, [account, activeView, view]);
@@ -119,7 +122,8 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${mobileNavOpen ? 'mobile-nav-open' : ''}`}>
+      {mobileNavOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} />}
       <aside className="sidebar">
         <Brand logo={logo} />
         <div className="workspace-caption">WORKSPACE</div>
@@ -128,7 +132,8 @@ export default function App() {
             <button
               className={`nav-link side-link ${activeView === item.id ? 'active' : ''}`}
               key={item.id}
-              onClick={() => setView(item.id)}
+              title={sidebarCollapsed ? item.label : undefined}
+              onClick={() => { setView(item.id); setMobileNavOpen(false); }}
             >
               <span className="side-icon">{item.icon}</span>{item.label}
             </button>
@@ -141,7 +146,16 @@ export default function App() {
       </aside>
       <main className="main-panel">
         <header className="topbar">
+          <button className="sidebar-toggle" type="button" aria-label="Toggle navigation"
+            aria-expanded={mobileNavOpen} title="Toggle navigation"
+            onClick={() => {
+              if (window.matchMedia('(max-width: 760px)').matches) setMobileNavOpen((open) => !open);
+              else setSidebarCollapsed((collapsed) => !collapsed);
+            }}>
+            <span aria-hidden="true">☰</span>
+          </button>
           <div className="mobile-brand"><Brand logo={logo} compact /></div>
+          <h1 className="topbar-title">{activeTitle}</h1>
           <div className="topbar-spacer" />
           <NotificationBell api={api} setView={setView} notify={notify} />
           <div className="signed-in">
@@ -427,13 +441,8 @@ function Enrollment({ api, accountId, notify, onCancel, onComplete }) {
 }
 
 function Page({ view, account, api, refreshKey, refresh, notify, setView }) {
-  const title = navItems.find((item) => item.id === view)?.label || 'Overview';
   return (
     <>
-      <div className="page-heading">
-        <div><span className="eyebrow">G-SQUAD / ADMIN</span><h1>{title}</h1></div>
-        <div className="page-date">{new Intl.DateTimeFormat(undefined, { dateStyle: 'full' }).format(new Date())}</div>
-      </div>
       {view === 'overview' && <Overview api={api} refreshKey={refreshKey} setView={setView} />}
       {view === 'staff' && <Staff api={api} refreshKey={refreshKey} notify={notify} />}
       {view === 'investors' && <Investors api={api} refreshKey={refreshKey} notify={notify} account={account} />}
@@ -501,6 +510,7 @@ function Staff({ api, refreshKey, notify }) {
   const [displayName, setDisplayName] = useState('');
   const [selected, setSelected] = useState([]);
   const [created, setCreated] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState(null);
   const [historyStaff, setHistoryStaff] = useState(null);
@@ -549,10 +559,13 @@ function Staff({ api, refreshKey, notify }) {
   if (loading) return <PageLoading label="Loading staff records…" />;
   if (error) return <ErrorCard error={error} />;
   return (
-    <div className="row g-4 align-items-start">
-      <div className="col-12 col-xl-7">
+    <div className="row align-items-start">
+      <div className="col-12">
         <section className="surface-card">
-          <div className="section-heading"><div><h2>Staff accounts</h2><p>{data.staff.length} staff identities</p></div></div>
+          <div className="section-heading">
+            <div><h2>Staff accounts</h2><p>{data.staff.length} staff identities</p></div>
+            <button className="btn btn-sm btn-primary" onClick={() => setCreateOpen(true)}><span aria-hidden="true">+</span> Add staff</button>
+          </div>
           <DataTable columns={['Name / account ID', 'Status', 'Permissions', 'Actions']} empty="No staff accounts have been created.">
             {data.staff.map((staff) => (
               <tr key={staff.accountId}>
@@ -574,21 +587,20 @@ function Staff({ api, refreshKey, notify }) {
           </DataTable>
         </section>
       </div>
-      <div className="col-12 col-xl-5">
-        <section className="surface-card create-staff-card">
-          <div className="section-heading"><div><h2>Create staff account</h2><p>Each staff member uses an individual authenticator.</p></div></div>
-          {created && (
-            <div className="alert alert-success">
-              <strong>{created.staff.displayName} · {created.staff.accountId}</strong>
-              <p className="mt-2 mb-2">{created.warning || `Deliver this single-use enrollment code through a secure channel. It expires in ${created.enrollmentExpiresInHours} hours.`}</p>
-              <div className="enrollment-code">{created.enrollmentToken}</div>
-              <button className="btn btn-sm btn-outline-success mt-2" onClick={() => {
-                navigator.clipboard.writeText(created.enrollmentToken).then(() => notify('Enrollment code copied.'));
-              }}>Copy code</button>
-              <button className="btn btn-sm btn-link" onClick={() => setCreated(null)}>Dismiss</button>
-            </div>
-          )}
-          <form onSubmit={create}>
+      {(createOpen || created) && <div className="modal-backdrop-custom" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && (setCreateOpen(false), setCreated(null))}>
+        <div className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="staff-create-title">
+          <div className="section-heading">
+            <div><h2 id="staff-create-title">{created ? 'Staff account created' : 'Add staff account'}</h2><p>Each staff member uses an individual authenticator.</p></div>
+            <button className="icon-close" onClick={() => { setCreateOpen(false); setCreated(null); }} aria-label="Close">×</button>
+          </div>
+          {created ? <div className="alert alert-success mb-0">
+            <strong>{created.staff.displayName} · {created.staff.accountId}</strong>
+            <p className="mt-2 mb-2">{created.warning || `Deliver this single-use enrollment code through a secure channel. It expires in ${created.enrollmentExpiresInHours} hours.`}</p>
+            <div className="enrollment-code">{created.enrollmentToken}</div>
+            <button className="btn btn-sm btn-outline-success mt-2" onClick={() => {
+              navigator.clipboard.writeText(created.enrollmentToken).then(() => notify('Enrollment code copied.'));
+            }}>Copy code</button>
+          </div> : <form onSubmit={create}>
             <label className="form-label" htmlFor="staff-name">Staff display name</label>
             <input id="staff-name" className="form-control mb-3" required minLength={2} maxLength={80}
               value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
@@ -602,12 +614,14 @@ function Staff({ api, refreshKey, notify }) {
                 </label>
               ))}
             </div>
-            <button className="btn btn-primary w-100 mt-3" disabled={busy}>
-              {busy ? 'Creating account…' : 'Create staff account'}
-            </button>
-          </form>
-        </section>
-      </div>
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-light" onClick={() => setCreateOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={busy}>{busy ? 'Creating account…' : 'Create staff account'}</button>
+            </div>
+          </form>}
+          {created && <div className="dialog-actions"><button className="btn btn-primary" onClick={() => { setCreateOpen(false); setCreated(null); }}>Done</button></div>}
+        </div>
+      </div>}
       {action && <PermissionModal staff={action} api={api} onClose={() => setAction(null)} notify={notify} reload={reload} />}
       {historyStaff && <StaffActivityModal staff={historyStaff} api={api} onClose={() => setHistoryStaff(null)} />}
     </div>
@@ -648,6 +662,7 @@ function PermissionModal({ staff, api, onClose, notify, reload }) {
   const [selected, setSelected] = useState(staff.permissions || []);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
   const save = async () => {
     if (reason.trim().length < 3) return;
     setBusy(true);
@@ -778,6 +793,7 @@ function Support({ api, refreshKey, account, notify }) {
   const [note, setNote] = useState('');
   const [escalated, setEscalated] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const investorsPath = `/api/support/investors?q=${encodeURIComponent(search)}`;
   const investors = useLoad(api, investorsPath, refreshKey);
   const notes = useLoad(
@@ -798,6 +814,7 @@ function Support({ api, refreshKey, account, notify }) {
       });
       setNote('');
       setEscalated(false);
+      setNoteOpen(false);
       notes.reload();
       notify(escalated ? 'Support note recorded and escalated to the CEO.' : 'Support note recorded.');
     } catch (requestError) {
@@ -833,7 +850,8 @@ function Support({ api, refreshKey, account, notify }) {
       <div className="col-12 col-xl-7">
         <section className="surface-card">
           <div className="section-heading"><div><h2>{selectedInvestor ? selectedInvestor.displayName : 'Support notes'}</h2>
-            <p>{selectedInvestor ? selectedInvestor.accountId : 'Select an investor to review internal notes.'}</p></div></div>
+            <p>{selectedInvestor ? selectedInvestor.accountId : 'Select an investor to review internal notes.'}</p></div>
+            {canRespond && selectedId && <button className="btn btn-sm btn-primary" onClick={() => setNoteOpen(true)}>Add note</button>}</div>
           {selectedId && (notes.loading ? <PageLoading label="Loading support notes…" />
             : notes.error ? <ErrorCard error={notes.error} />
               : <DataTable columns={['Note', 'Author', 'Created']} empty="No internal notes are recorded for this investor.">
@@ -842,21 +860,28 @@ function Support({ api, refreshKey, account, notify }) {
                     <td>{item.authorName}<small>{item.authorAccountId}</small></td><td>{formatDate(item.createdAt)}</td></tr>
                 ))}
               </DataTable>)}
-          {canRespond && selectedId && <form className="mt-3" onSubmit={submit}>
+        </section>
+      </div>
+      {noteOpen && canRespond && selectedId && <div className="modal-backdrop-custom" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setNoteOpen(false)}>
+        <div className="dialog-card" role="dialog" aria-modal="true" aria-labelledby="support-note-title">
+          <div className="section-heading"><div><h2 id="support-note-title">Add support note</h2><p>{selectedInvestor?.displayName} · {selectedId}</p></div>
+            <button className="icon-close" onClick={() => setNoteOpen(false)} aria-label="Close">×</button></div>
+          <form onSubmit={submit}>
             <label className="form-label" htmlFor="support-note">Internal note</label>
             <textarea id="support-note" className="form-control" value={note}
-              onChange={(event) => setNote(event.target.value)} rows="4" minLength={1} maxLength={4000} required />
+              onChange={(event) => setNote(event.target.value)} rows="5" minLength={1} maxLength={4000} required />
             <label className="form-check mt-3">
               <input className="form-check-input" type="checkbox" checked={escalated}
                 onChange={(event) => setEscalated(event.target.checked)} />
               <span className="form-check-label">Escalate this issue to the CEOs</span>
             </label>
-            <button className="btn btn-primary mt-3" disabled={busy || !note.trim()}>
-              {busy ? 'Saving…' : 'Save support note'}
-            </button>
-          </form>}
-        </section>
-      </div>
+            <div className="dialog-actions">
+              <button type="button" className="btn btn-light" onClick={() => setNoteOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={busy || !note.trim()}>{busy ? 'Saving…' : 'Save support note'}</button>
+            </div>
+          </form>
+        </div>
+      </div>}
     </div>
   );
 }
@@ -1064,6 +1089,7 @@ function Transactions({ api, refreshKey, kind, account, notify }) {
   const [destination, setDestination] = useState('');
   const [reason, setReason] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   if (loading) return <PageLoading label={`Loading ${kind} records…`} />;
   if (error) return <ErrorCard error={error} />;
   const rows = data.transactions;
@@ -1084,6 +1110,7 @@ function Transactions({ api, refreshKey, kind, account, notify }) {
       setIdempotencyKey('');
       setAmountUsd('');
       setReason('');
+      setCreateOpen(false);
       if (kind === 'withdrawal') setDestination('');
       notify(kind === 'deposit'
         ? 'Plisio invoice created. The investor must complete payment; verification is still required.'
@@ -1129,13 +1156,14 @@ function Transactions({ api, refreshKey, kind, account, notify }) {
   };
   return (
     <>
-    {canCreate && <section className="surface-card mb-4">
-      <div className="section-heading"><div>
-        <h2>{kind === 'deposit' ? 'Create Plisio deposit invoice' : 'Request USDT TRC20 withdrawal'}</h2>
-        <p>{kind === 'deposit'
-          ? 'Create a provider-hosted invoice. Wallet credit still requires provider verification and separate CEO authorization.'
-          : 'Get a fresh provider quote, reserve available funds, and submit the payout for staff and CEO review.'}</p>
-      </div></div>
+    {canCreate && createOpen && <div className="modal-backdrop-custom" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setCreateOpen(false)}>
+      <div className="dialog-card transaction-create-dialog" role="dialog" aria-modal="true" aria-labelledby="transaction-create-title">
+        <div className="section-heading"><div>
+          <h2 id="transaction-create-title">{kind === 'deposit' ? 'Create Plisio deposit invoice' : 'Request USDT TRC20 withdrawal'}</h2>
+          <p>{kind === 'deposit'
+            ? 'Create a provider-hosted invoice. Wallet credit still requires provider verification and separate CEO authorization.'
+            : 'Get a fresh provider quote, reserve available funds, and submit the payout for staff and CEO review.'}</p>
+        </div><button className="icon-close" onClick={() => setCreateOpen(false)} aria-label="Close">×</button></div>
       <form className="row g-3 align-items-end" onSubmit={create}>
         <div className="col-12 col-md-5">
           <label className="form-label" htmlFor={`${kind}-investor`}>Active investor</label>
@@ -1179,9 +1207,11 @@ function Transactions({ api, refreshKey, kind, account, notify }) {
           {kind === 'withdrawal' && <small className="text-secondary">Automatic payout is disabled until enabled in secure server configuration.</small>}
         </div>
       </form>
-    </section>}
+      </div>
+    </div>}
     <section className="surface-card">
-      <div className="section-heading"><div><h2>{kind === 'deposit' ? 'Deposit requests' : 'Withdrawal requests'}</h2><p>Provider and transaction state from persisted records. Review decisions are not simulated.</p></div></div>
+      <div className="section-heading"><div><h2>{kind === 'deposit' ? 'Deposit requests' : 'Withdrawal requests'}</h2><p>Provider and transaction state from persisted records. Review decisions are not simulated.</p></div>
+        {canCreate && <button className="btn btn-sm btn-primary" onClick={() => setCreateOpen(true)}>{kind === 'deposit' ? 'Create invoice' : 'New withdrawal'}</button>}</div>
       <DataTable columns={['Reference / investor', 'Amount', 'Details', 'Status', 'Created', 'Provider actions', ...(account.role === 'STAFF' ? ['Staff actions'] : [])]} empty={`No ${kind} requests are recorded.`}>
         {rows.map((item) => {
           const activeApproval = item.approval && ['pending', 'approved'].includes(item.approval.status);
@@ -1460,6 +1490,7 @@ function TradingConfigurationEditor({ setting, api, notify, onSaved }) {
       });
       setValue(draft);
       setReason('');
+      setEditing(false);
       notify('Trading configuration draft saved and audited.');
       onSaved();
     } catch (requestError) {
@@ -1469,59 +1500,70 @@ function TradingConfigurationEditor({ setting, api, notify, onSaved }) {
     }
   };
 
-  return <form className="setting-editor" onSubmit={save}>
-    <div className="section-heading">
+  return <>
+    <div className="setting-editor setting-summary-row">
       <div><strong>{setting.label}</strong><small>Draft only · Last updated {formatDate(setting.updatedAt)}</small></div>
+      <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditing(true)}>Edit draft</button>
     </div>
-    <IntegrationNotice text="These settings are stored for planning and audit only. They are not sent to Deriv, do not configure an execution engine, and cannot enable live or simulated trades. Confirm permitted values and provider/legal authorization before any future integration." />
-    <div className="row g-3">
-      <div className="col-12">
-        <label className="form-label" htmlFor="trading-strategy-notes">Strategy settings</label>
-        <input id="trading-strategy-notes" className="form-control" maxLength={120} value={value.strategy}
-          onChange={(event) => setValue((current) => ({ ...current, strategy: event.target.value }))} />
+    {editing && <div className="modal-backdrop-custom" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setEditing(false)}>
+      <div className="dialog-card setting-dialog" role="dialog" aria-modal="true" aria-labelledby="trading-setting-title">
+        <div className="section-heading"><div><h2 id="trading-setting-title">Edit {setting.label}</h2><p>Draft only · Last updated {formatDate(setting.updatedAt)}</p></div>
+          <button className="icon-close" onClick={() => setEditing(false)} aria-label="Close">×</button></div>
+        <IntegrationNotice text="These settings are stored for planning and audit only. They are not sent to Deriv, do not configure an execution engine, and cannot enable live or simulated trades. Confirm permitted values and provider/legal authorization before any future integration." />
+        <form onSubmit={save}>
+          <div className="row g-3">
+            <div className="col-12">
+              <label className="form-label" htmlFor="trading-strategy-notes">Strategy settings</label>
+              <input id="trading-strategy-notes" className="form-control" maxLength={120} value={value.strategy}
+                onChange={(event) => setValue((current) => ({ ...current, strategy: event.target.value }))} />
+            </div>
+            <div className="col-12 col-lg-6">
+              <label className="form-label" htmlFor="trading-markets">Permitted markets</label>
+              <textarea id="trading-markets" className="form-control" rows="2" maxLength={2100} value={markets}
+                onChange={(event) => setMarkets(event.target.value)} aria-describedby="trading-markets-help" />
+              <small id="trading-markets-help">Separate entries with commas. Draft values only.</small>
+            </div>
+            <div className="col-12 col-lg-6">
+              <label className="form-label" htmlFor="trading-contracts">Permitted contracts</label>
+              <textarea id="trading-contracts" className="form-control" rows="2" maxLength={2100} value={contracts}
+                onChange={(event) => setContracts(event.target.value)} aria-describedby="trading-contracts-help" />
+              <small id="trading-contracts-help">Separate entries with commas. Draft values only.</small>
+            </div>
+            <div className="col-12 col-md-6">
+              <label className="form-check form-switch mb-0">
+                <input className="form-check-input" type="checkbox" role="switch" checked={value.recoveryEnabled}
+                  onChange={(event) => setValue((current) => ({ ...current, recoveryEnabled: event.target.checked }))}
+                  aria-label="Enable recovery in draft configuration" />
+                <span className="form-check-label">Recovery in draft configuration</span>
+              </label>
+            </div>
+            <div className="col-12 col-md-6">
+              <label className="form-label" htmlFor="trading-recovery-multiplier">Recovery multiplier</label>
+              <input id="trading-recovery-multiplier" className="form-control" inputMode="decimal" maxLength={20}
+                value={value.recoveryMultiplier} onChange={(event) => setValue((current) => ({
+                  ...current, recoveryMultiplier: event.target.value,
+                }))} />
+            </div>
+          </div>
+          <div className="setting-reason-row mt-3">
+            <input className="form-control" value={reason} onChange={(event) => setReason(event.target.value)}
+              placeholder="Reason for change" minLength={3} maxLength={500} required />
+            <div className="dialog-actions mt-0">
+              <button type="button" className="btn btn-light" onClick={() => setEditing(false)}>Cancel</button>
+              <button className="btn btn-primary" disabled={busy || reason.trim().length < 3}>{busy ? 'Saving draft…' : 'Save draft'}</button>
+            </div>
+          </div>
+        </form>
       </div>
-      <div className="col-12 col-lg-6">
-        <label className="form-label" htmlFor="trading-markets">Permitted markets</label>
-        <textarea id="trading-markets" className="form-control" rows="2" maxLength={2100} value={markets}
-          onChange={(event) => setMarkets(event.target.value)} aria-describedby="trading-markets-help" />
-        <small id="trading-markets-help">Separate entries with commas. Draft values only.</small>
-      </div>
-      <div className="col-12 col-lg-6">
-        <label className="form-label" htmlFor="trading-contracts">Permitted contracts</label>
-        <textarea id="trading-contracts" className="form-control" rows="2" maxLength={2100} value={contracts}
-          onChange={(event) => setContracts(event.target.value)} aria-describedby="trading-contracts-help" />
-        <small id="trading-contracts-help">Separate entries with commas. Draft values only.</small>
-      </div>
-      <div className="col-12 col-md-6">
-        <label className="form-check form-switch mb-0">
-          <input className="form-check-input" type="checkbox" role="switch" checked={value.recoveryEnabled}
-            onChange={(event) => setValue((current) => ({ ...current, recoveryEnabled: event.target.checked }))}
-            aria-label="Enable recovery in draft configuration" />
-          <span className="form-check-label">Recovery in draft configuration</span>
-        </label>
-      </div>
-      <div className="col-12 col-md-6">
-        <label className="form-label" htmlFor="trading-recovery-multiplier">Recovery multiplier</label>
-        <input id="trading-recovery-multiplier" className="form-control" inputMode="decimal" maxLength={20}
-          value={value.recoveryMultiplier} onChange={(event) => setValue((current) => ({
-            ...current, recoveryMultiplier: event.target.value,
-          }))} />
-      </div>
-    </div>
-    <div className="setting-reason-row mt-3">
-      <input className="form-control" value={reason} onChange={(event) => setReason(event.target.value)}
-        placeholder="Reason for change" minLength={3} maxLength={500} required />
-      <button className="btn btn-sm btn-primary" disabled={busy || reason.trim().length < 3}>
-        {busy ? 'Saving draft…' : 'Save draft'}
-      </button>
-    </div>
-  </form>;
+    </div>}
+  </>;
 }
 
 function SettingEditor({ setting, api, notify, onSaved }) {
   const [value, setValue] = useState(setting.value);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -1531,6 +1573,7 @@ function SettingEditor({ setting, api, notify, onSaved }) {
         body: JSON.stringify({ value, reason }),
       });
       setReason('');
+      setEditing(false);
       notify(`${setting.label} saved and audited.`);
       onSaved();
     } catch (requestError) {
@@ -1539,23 +1582,35 @@ function SettingEditor({ setting, api, notify, onSaved }) {
       setBusy(false);
     }
   };
-  return <form className="setting-editor" onSubmit={save}>
-    <div className="setting-editor-heading">
+  return <>
+    <div className="setting-editor setting-summary-row">
       <div><strong>{setting.label}</strong><small>{setting.key} · Last updated {formatDate(setting.updatedAt)}</small></div>
-      {setting.type === 'boolean'
-        ? <label className="form-check form-switch mb-0">
-          <input className="form-check-input" type="checkbox" role="switch" checked={value}
-            onChange={(event) => setValue(event.target.checked)} aria-label={setting.label} />
-        </label>
-        : <textarea className="form-control setting-value" value={value} rows="2"
-          onChange={(event) => setValue(event.target.value)} maxLength={500} aria-label={setting.label} />}
+      <button className="btn btn-sm btn-outline-secondary" onClick={() => setEditing(true)}>Edit</button>
     </div>
-    <div className="setting-reason-row">
-      <input className="form-control" value={reason} onChange={(event) => setReason(event.target.value)}
-        placeholder="Reason for change" minLength={3} maxLength={500} required />
-      <button className="btn btn-sm btn-primary" disabled={busy || reason.trim().length < 3}>{busy ? 'Saving…' : 'Save'}</button>
-    </div>
-  </form>;
+    {editing && <div className="modal-backdrop-custom" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setEditing(false)}>
+      <div className="dialog-card setting-dialog" role="dialog" aria-modal="true" aria-labelledby={`setting-title-${setting.key}`}>
+        <div className="section-heading"><div><h2 id={`setting-title-${setting.key}`}>Edit {setting.label}</h2><p>{setting.key} · Last updated {formatDate(setting.updatedAt)}</p></div>
+          <button className="icon-close" onClick={() => setEditing(false)} aria-label="Close">×</button></div>
+        <form onSubmit={save}>
+          {setting.type === 'boolean'
+            ? <label className="form-check form-switch mb-3">
+              <input className="form-check-input" type="checkbox" role="switch" checked={value}
+                onChange={(event) => setValue(event.target.checked)} aria-label={setting.label} />
+              <span className="form-check-label">{setting.label}</span>
+            </label>
+            : <textarea className="form-control mb-3" value={value} rows="4"
+              onChange={(event) => setValue(event.target.value)} maxLength={500} aria-label={setting.label} />}
+          <label className="form-label" htmlFor={`setting-reason-${setting.key}`}>Reason for change</label>
+          <input id={`setting-reason-${setting.key}`} className="form-control" value={reason} onChange={(event) => setReason(event.target.value)}
+            minLength={3} maxLength={500} required />
+          <div className="dialog-actions">
+            <button type="button" className="btn btn-light" onClick={() => setEditing(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy || reason.trim().length < 3}>{busy ? 'Saving…' : 'Save'}</button>
+          </div>
+        </form>
+      </div>
+    </div>}
+  </>;
 }
 
 function IntegrationRow({ label, status, detail }) {
