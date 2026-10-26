@@ -37,14 +37,15 @@ button, input, select, textarea { font: inherit; }
 .side-link.active .side-icon { color: #a37b00; }
 .sidebar-footer { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 12px; border-top: 1px solid var(--line); color: #777e76; font-size: 11px; }
 .connection-dot, .status-dot { width: 8px; height: 8px; flex: none; border-radius: 100%; background: #45aa72; }
-.main-panel { min-height: 100vh; margin-left: 252px; transition: margin-left .18s ease; }
-.topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; min-height: 62px; gap: 14px; padding: 0 30px; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 96%); backdrop-filter: blur(12px); }
+.main-panel { min-height: 100vh; margin-left: 252px; padding-top: 62px; transition: margin-left .18s ease; }
+.topbar { position: fixed; inset: 0 0 auto 252px; z-index: 15; display: flex; align-items: center; min-height: 62px; gap: 14px; padding: 0 30px; border-bottom: 1px solid var(--line); background: rgb(255 255 255 / 96%); backdrop-filter: blur(12px); }
 .topbar-title { margin: 0; color: var(--ink); font-size: 14px; font-weight: 700; }
 .sidebar-toggle { display: inline-grid; width: 34px; height: 34px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #555b53; font-size: 16px; }
 .sidebar-toggle:hover { background: #f8f8f4; }
 .sidebar-backdrop { display: none; }
 .sidebar-collapsed .sidebar { width: 72px; padding-right: 10px; padding-left: 10px; }
 .sidebar-collapsed .main-panel { margin-left: 72px; }
+.sidebar-collapsed .topbar { left: 72px; }
 .sidebar-collapsed .sidebar > .brand { justify-content: center; padding-right: 0; padding-left: 0; }
 .sidebar-collapsed .sidebar > .brand > div, .sidebar-collapsed .workspace-caption, .sidebar-collapsed .sidebar-footer span { display: none; }
 .sidebar-collapsed .side-link { justify-content: center; gap: 0; overflow: hidden; font-size: 0; }
@@ -199,6 +200,7 @@ button, input, select, textarea { font: inherit; }
   .main-panel { margin-left: 218px; }
   .content-wrap { padding-right: 24px; padding-left: 24px; }
   .topbar { padding-right: 24px; padding-left: 24px; }
+  .topbar { left: 218px; }
 }
 @media (max-width: 760px) {
   input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: max(16px, 1em) !important; }
@@ -216,7 +218,8 @@ button, input, select, textarea { font: inherit; }
   .sidebar-collapsed .sidebar > .brand > div, .sidebar-collapsed .workspace-caption, .sidebar-collapsed .sidebar-footer span { display: block; }
   .sidebar-collapsed .side-link { justify-content: flex-start; gap: 12px; font-size: 12px; }
   .sidebar-collapsed .side-icon { width: 20px; font-size: 16px; }
-  .topbar { position: sticky; min-height: 58px; gap: 8px; padding: 0 12px; }
+  .main-panel { padding-top: 58px; }
+  .topbar, .sidebar-collapsed .topbar { inset: 0 0 auto; min-height: 58px; gap: 8px; padding: 0 12px; }
   .topbar-title { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .sidebar-toggle { width: 32px; height: 32px; }
   .mobile-brand { display: none; }
