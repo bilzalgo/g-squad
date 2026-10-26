@@ -265,12 +265,17 @@ function Brand({ logo: mark, compact = false }) {
 }
 
 function Login({ api, health, onLogin, notify }) {
-  const [enrolling, setEnrolling] = useState(false);
+  const [step, setStep] = useState('account');
   const [accountId, setAccountId] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const continueWithAccount = (event) => {
+    event.preventDefault();
+    setStep('setup');
+    setError('');
+  };
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -294,8 +299,12 @@ function Login({ api, health, onLogin, notify }) {
         <Brand logo={logo} />
         <div className="login-heading">
           <span className="eyebrow">ADMINISTRATOR ACCESS</span>
-          <h1>Welcome back</h1>
-          <p>Sign in using your registered account ID and Google Authenticator code.</p>
+          <h1>{step === 'account' ? 'Welcome back' : step === 'setup' ? 'Set up authenticator' : 'Verify your identity'}</h1>
+          <p>{step === 'account'
+            ? 'Enter your admin account ID to continue.'
+            : step === 'setup'
+              ? 'Use your one-time setup code to securely register Google Authenticator.'
+              : 'Enter the six-digit code from Google Authenticator to sign in.'}</p>
         </div>
         {health?.database !== 'connected' && (
           <div className="alert alert-warning setup-alert" role="status">
@@ -303,23 +312,41 @@ function Login({ api, health, onLogin, notify }) {
             Configure <code>DATABASE_URL</code> and apply the database migration to enable sign-in.
           </div>
         )}
-        {!enrolling ? <form onSubmit={submit}>
+        {step === 'account' ? <form onSubmit={continueWithAccount}>
           <label className="form-label" htmlFor="account-id">Admin account ID</label>
           <input id="account-id" className="form-control form-control-lg mb-3" autoComplete="username"
+            pattern="[A-Za-z0-9_-]{3,40}" title="Use 3-40 letters, numbers, underscores, or hyphens."
             value={accountId} onChange={(event) => setAccountId(event.target.value)} required maxLength={40} />
-          <label className="form-label" htmlFor="totp-code">Authenticator code</label>
-          <input id="totp-code" className="form-control form-control-lg code-input" inputMode="numeric"
-            autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code}
-            onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required />
           {error && <div className="form-error" role="alert">{error}</div>}
-          <button className="btn btn-primary btn-lg w-100 login-submit" disabled={busy || code.length !== 6}>
-            {busy ? <><span className="spinner-border spinner-border-sm me-2" />Verifying…</> : 'Sign in securely'}
-          </button>
-        </form> : <Enrollment api={api} notify={notify} onComplete={() => setEnrolling(false)} />}
-        <button className="btn btn-link w-100 mt-3 p-1 enrollment-link" onClick={() => {
-          setEnrolling((current) => !current);
-          setError('');
-        }}>{enrolling ? 'Return to sign in' : 'Set up authenticator for first login'}</button>
+          <button className="btn btn-primary btn-lg w-100 login-submit">Continue</button>
+        </form> : step === 'setup' ? <Enrollment api={api} accountId={accountId} notify={notify}
+          onCancel={() => setStep('login')}
+          onComplete={() => {
+            setCode('');
+            setStep('login');
+          }} /> : <>
+          <div className="setup-alert mb-3">Signing in as <strong>{accountId}</strong></div>
+          <form onSubmit={submit}>
+            <label className="form-label" htmlFor="totp-code">Six-digit authenticator code</label>
+            <input id="totp-code" className="form-control form-control-lg code-input" inputMode="numeric"
+              autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required />
+            {error && <div className="form-error" role="alert">{error}</div>}
+            <button className="btn btn-primary btn-lg w-100 login-submit" disabled={busy || code.length !== 6}>
+              {busy ? <><span className="spinner-border spinner-border-sm me-2" />Verifying…</> : 'Sign in securely'}
+            </button>
+          </form>
+          <button className="btn btn-link w-100 mt-3 p-1 enrollment-link" onClick={() => {
+            setStep('setup');
+            setCode('');
+            setError('');
+          }}>First time? Set up authenticator</button>
+          <button className="btn btn-link w-100 p-1 enrollment-link" onClick={() => {
+            setStep('account');
+            setCode('');
+            setError('');
+          }}>Use a different account ID</button>
+        </>}
         <div className="login-footnote">Admin access is protected with time-based one-time codes. There is no password login.</div>
       </section>
       <div className="login-bottom">G-Squad · Secure administration</div>
@@ -328,8 +355,7 @@ function Login({ api, health, onLogin, notify }) {
   );
 }
 
-function Enrollment({ api, notify, onComplete }) {
-  const [accountId, setAccountId] = useState('');
+function Enrollment({ api, accountId, notify, onCancel, onComplete }) {
   const [enrollmentToken, setEnrollmentToken] = useState('');
   const [setup, setSetup] = useState(null);
   const [code, setCode] = useState('');
@@ -360,7 +386,7 @@ function Enrollment({ api, notify, onComplete }) {
         method: 'POST',
         body: JSON.stringify({ accountId: accountId.trim(), enrollmentToken, code }),
       });
-      notify('Authenticator enrolled. Sign in with your new code.');
+      notify('Authenticator enrolled. Wait for the next six-digit code, then sign in.');
       onComplete();
     } catch (requestError) {
       setError(requestError.message);
@@ -372,16 +398,20 @@ function Enrollment({ api, notify, onComplete }) {
   return (
     <div>
       {!setup ? <form onSubmit={start}>
-        <div className="alert alert-info setup-alert">CEOs use the one-time setup code printed by the bootstrap command. Staff use the one-time setup code provided by a CEO.</div>
-        <label className="form-label" htmlFor="enroll-account-id">Admin account ID</label>
-        <input id="enroll-account-id" className="form-control mb-3" value={accountId} onChange={(event) => setAccountId(event.target.value)} required />
+        <div className="alert alert-info setup-alert">
+          Account ID: <strong>{accountId}</strong>. Enter the one-time setup code issued for this account.
+          The code is required before the authenticator secret can be displayed.
+        </div>
         <label className="form-label" htmlFor="enroll-token">One-time setup code</label>
         <input id="enroll-token" className="form-control" autoComplete="off" autoCapitalize="none" spellCheck={false}
           value={enrollmentToken} onChange={(event) => setEnrollmentToken(event.target.value)} required />
         {error && <div className="form-error" role="alert">{error}</div>}
         <button className="btn btn-primary w-100 mt-3" disabled={busy}>{busy ? 'Preparing enrollment…' : 'Continue enrollment'}</button>
+        <button type="button" className="btn btn-link w-100 mt-2 p-1 enrollment-link" onClick={onCancel}>Back to sign in</button>
       </form> : <form onSubmit={complete}>
-        <div className="alert alert-warning setup-alert">Add this secret to Google Authenticator now. It is displayed once and will not be shown again.</div>
+        <div className="alert alert-warning setup-alert">
+          Add this secret to Google Authenticator now. It is displayed once and will not be shown again.
+        </div>
         <label className="form-label">Authenticator secret</label>
         <div className="enrollment-secret">{setup.secret}</div>
         <p className="small text-secondary mt-2">Or import this provisioning URI in your authenticator app:</p>

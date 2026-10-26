@@ -41,7 +41,7 @@ try {
     'CEO accounts created in enrollment-pending state. Setup codes expire in 24 hours and are shown once.',
     `${firstId} setup code: ${firstEnrollmentToken}`,
     `${secondId} setup code: ${secondEnrollmentToken}`,
-    'Each CEO must open the app, choose "Set up authenticator for first login", and enter their own account ID and setup code.',
+    'Each CEO enters their own account ID in the app, continues, then chooses "First time? Set up authenticator" and enters their one-time setup code.',
     'The app will show a one-time authenticator secret/URI. Add it to Google Authenticator and verify its current six-digit code to activate the account.',
     '',
   ].join('\n'));
