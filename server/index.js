@@ -500,7 +500,9 @@ async function startEnrollment(request, response) {
   );
   if (rows.length !== 1) {
     await addAudit(null, 'admin.authenticator.enrollment.failed', { accountId }, 'failure', randomUUID());
-    sendJson(response, 400, { error: 'Enrollment code is invalid, expired, or already used.' });
+    sendJson(response, 400, {
+      error: 'Enrollment code is invalid, expired, or already used. Ask an administrator to issue a fresh code.',
+    });
     return;
   }
   await addAudit(null, `${rows[0].role.toLowerCase()}.authenticator.setup_started`, { accountId }, 'success', randomUUID());
@@ -545,7 +547,9 @@ async function completeEnrollment(request, response, requestId) {
   });
   if (!completed) {
     await addAudit(null, 'admin.authenticator.enrollment.failed', { accountId }, 'failure', requestId);
-    sendJson(response, 400, { error: 'Enrollment code or authenticator code is invalid.' });
+    sendJson(response, 400, {
+      error: 'Enrollment code is invalid or expired, or the authenticator code is incorrect. If the setup code expired, ask an administrator to issue a fresh one.',
+    });
     return;
   }
   sendJson(response, 200, { ok: true, message: 'Authenticator enrolled. You can now sign in.' });

@@ -9,7 +9,8 @@
     "test": "node --test",
     "start": "node --env-file-if-exists=.env server/index.js",
     "db:migrate": "node --env-file-if-exists=.env server/migrate.js",
-    "admin:bootstrap": "node --env-file-if-exists=.env server/bootstrap-admin.js"
+    "admin:bootstrap": "node --env-file-if-exists=.env server/bootstrap-admin.js",
+    "admin:reenroll": "node --env-file-if-exists=.env server/reenroll-admin.js"
   },
   "engines": {
     "node": "24.x"
